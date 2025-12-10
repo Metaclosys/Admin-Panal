@@ -1,0 +1,42 @@
+.container {
+  padding: 20px;
+  background-color: var(--bgSoft);
+  border-radius: 10px;
+  margin-top: 20px;
+  justify-content: space-between;
+}
+
+.form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.form input,
+.form select,
+.form textarea {
+  padding: 30px;
+  background-color: var(--bg);
+  border: 2px solid #2e374a;
+  color: var(--text);
+  border-radius: 5px;
+}
+
+.form input,
+.form select {
+  width: calc(50% - 10px);
+}
+
+.form textarea {
+  width: 100%;
+}
+
+.form button {
+  width: 100%;
+  padding: 30px;
+  background-color: teal;
+  color: var(--text);
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}

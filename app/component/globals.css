@@ -1,0 +1,68 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #DFF6FF;
+  --bgSoft: #47B5FF;
+  --bgBright: #1363DF;
+  --bgDark: #06283D;
+  --bgwhite: #ffffff;
+  --text: #ffffff;
+  --textDark: #000000;
+  --textSoft: #b7bac1;
+  --foreground: #171717;
+}
+
+*{
+ margin: 0; 
+ padding: 0;
+ box-sizing: border-box;
+}
+
+a{
+ color: inherit;
+ text-decoration: none;
+}
+
+body {
+  color: var(--text);
+  background: var(--bg);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+/* Target the scrollbar */
+::-webkit-scrollbar {
+  width: 12px; /* Width of the scrollbar */
+  height: 12px; /* Height of the scrollbar */
+}
+
+/* Scrollbar track */
+::-webkit-scrollbar-track {
+  background: #f1f1f1; /* Track background color */
+  border-radius: 10px; /* Optional: Make the track rounded */
+}
+
+/* Scrollbar thumb (the draggable part) */
+::-webkit-scrollbar-thumb {
+  background: #888888; /* Thumb color */
+  border-radius: 10px; /* Optional: Make the thumb rounded */
+  border: 2px solid #f1f1f1; /* Optional: Add a border around the thumb */
+}
+
+/* Scrollbar thumb hover */
+::-webkit-scrollbar-thumb:hover {
+  background: #005bb5; /* Change color on hover */
+}
+
+/* Optional: Scrollbar corner for horizontal+vertical scrollbars */
+::-webkit-scrollbar-corner {
+  background: #f1f1f1;
+}
