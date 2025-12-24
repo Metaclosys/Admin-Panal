@@ -139,6 +139,9 @@ const getProductLabel = (product) => {
   return getEntityId(product) || "Unknown";
 };
 
+const USE_ASSIGNMENTS =
+  process.env.NEXT_PUBLIC_USE_SERVICE_ASSIGNMENTS === "true";
+
 const buildUpdatePayload = (values, existingService) => ({
   name: values.name ?? existingService?.name ?? "",
   category: values.category ?? existingService?.category ?? "",
@@ -155,6 +158,39 @@ const buildUpdatePayload = (values, existingService) => ({
       : true,
 });
 
+const buildAssignmentUpdatePayload = (values, existingService, shopId) => {
+  const assignmentId =
+    existingService?.assignmentId || existingService?.assignmentMeta?.assignmentId;
+  if (!assignmentId) {
+    throw new Error("Missing assignment identifier");
+  }
+
+  const resolvedLocationId =
+    existingService?.assignmentMeta?.locationId || shopId || existingService?.locationId;
+
+  return {
+    id: assignmentId,
+    payload: {
+      locationId: resolvedLocationId ? String(resolvedLocationId) : undefined,
+      price: formatNumber(values.price ?? existingService?.price ?? 0),
+      duration: String(normalizeDuration(values.duration ?? existingService?.duration ?? 30)),
+      discount: formatNumber(values.discount ?? existingService?.discount ?? 0),
+      employees: Array.isArray(values.employees)
+        ? values.employees
+        : extractIds(existingService?.assignedEmployees),
+      products: Array.isArray(values.products)
+        ? values.products
+        : extractIds(existingService?.productsUsed || existingService?.products || []),
+      isActive:
+        values.isActive !== undefined
+          ? Boolean(values.isActive)
+          : existingService?.isActive !== undefined
+          ? Boolean(existingService.isActive)
+          : true,
+    },
+  };
+};
+
 function EditServiceModal({ open, onClose, onSuccess, service, shopId }) {
   const [form] = Form.useForm();
   const { data: session } = useSession();
@@ -168,7 +204,7 @@ function EditServiceModal({ open, onClose, onSuccess, service, shopId }) {
     if (!service) {
       return undefined;
     }
-    return service._id || service.id || service.serviceId;
+    return service.assignmentId || service._id || service.id || service.serviceId;
   }, [service]);
 
   useEffect(() => {
@@ -284,18 +320,37 @@ function EditServiceModal({ open, onClose, onSuccess, service, shopId }) {
 
     try {
       const values = await form.validateFields();
-      const payload = buildUpdatePayload(values, currentService || service);
+      if (USE_ASSIGNMENTS && service?.assignmentId) {
+        const { id, payload } = buildAssignmentUpdatePayload(
+          values,
+          currentService || service,
+          shopId
+        );
 
-      setLoading(true);
-      await apiCall(API_ENDPOINTS.SERVICES.BY_ID(encodeURIComponent(serviceId)), {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${session.accessToken}`,
-        },
-        body: JSON.stringify(payload),
-      });
+        await apiCall(API_ENDPOINTS.SERVICE_ASSIGNMENTS.BY_ID(id), {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${session.accessToken}`,
+          },
+          body: JSON.stringify(payload),
+        });
+      } else {
+        const payload = buildUpdatePayload(values, currentService || service);
 
-      message.success("Service updated successfully");
+        await apiCall(API_ENDPOINTS.SERVICES.BY_ID(encodeURIComponent(serviceId)), {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${session.accessToken}`,
+          },
+          body: JSON.stringify(payload),
+        });
+      }
+
+      message.success(
+        USE_ASSIGNMENTS && service?.assignmentId
+          ? "Service assignment updated successfully"
+          : "Service updated successfully"
+      );
       onSuccess?.();
     } catch (error) {
       if (error?.errorFields) {

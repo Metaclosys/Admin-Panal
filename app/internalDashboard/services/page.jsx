@@ -9,6 +9,47 @@ import { PlusOutlined } from "@ant-design/icons";
 import MiddleSection from "../../component/internalDashboard/service/MiddleSection/MiddleSection";
 import { apiCall, API_ENDPOINTS } from "../../api/apiContent/apiContent";
 
+const USE_ASSIGNMENTS =
+  process.env.NEXT_PUBLIC_USE_SERVICE_ASSIGNMENTS === "true";
+
+const mapAssignmentToService = (assignment) => {
+  if (!assignment) {
+    return {};
+  }
+
+  const baseService = assignment.service || {};
+  const mergedEmployees =
+    Array.isArray(assignment.assignedEmployees) &&
+    assignment.assignedEmployees.length
+      ? assignment.assignedEmployees
+      : baseService.assignedEmployees;
+
+  const mergedProducts =
+    Array.isArray(assignment.products) && assignment.products.length
+      ? assignment.products
+      : baseService.productsUsed || baseService.products;
+
+  return {
+    ...baseService,
+    assignmentId: assignment._id || assignment.id,
+    assignmentMeta: {
+      isActiveOverride:
+        assignment.isActive !== undefined ? assignment.isActive : undefined,
+      source: "assignment",
+      locationId: assignment.locationId,
+    },
+    price: assignment.price ?? baseService.price,
+    duration: assignment.duration ?? baseService.duration,
+    discount: assignment.discount ?? baseService.discount,
+    isActive:
+      assignment.isActive !== undefined
+        ? assignment.isActive
+        : baseService.isActive,
+    assignedEmployees: mergedEmployees,
+    products: mergedProducts,
+  };
+};
+
 export default function ServicesPage() {
   const { data: session } = useSession();
   const { currentShopId } = useShop();
@@ -41,16 +82,35 @@ export default function ServicesPage() {
         );
       }
 
-      console.log("Fetching services for shop:", shopId);
-      const data = await apiCall(
-        API_ENDPOINTS.SERVICES.BY_SHOP(shopId, !showInactive),
-        {
-          headers: {
-            Authorization: `Bearer ${session.accessToken}`,
-          },
-        }
-      );
-      setServices(data);
+      console.log("Fetching services for shop:", shopId, {
+        useAssignments: USE_ASSIGNMENTS,
+      });
+
+      const endpoint = USE_ASSIGNMENTS
+        ? API_ENDPOINTS.SERVICE_ASSIGNMENTS.BY_LOCATION(shopId, showInactive)
+        : API_ENDPOINTS.SERVICES.BY_SHOP(shopId, !showInactive);
+
+      const data = await apiCall(endpoint, {
+        headers: {
+          Authorization: `Bearer ${session.accessToken}`,
+        },
+      });
+
+      const normalizedData = Array.isArray(data)
+        ? USE_ASSIGNMENTS
+          ? data.map(mapAssignmentToService)
+          : data
+        : [];
+
+      if (USE_ASSIGNMENTS) {
+        console.debug(
+          "Service assignment fetch",
+          `assignments=${Array.isArray(data) ? data.length : 0}`,
+          `normalizedServices=${normalizedData.length}`
+        );
+      }
+
+      setServices(normalizedData);
     } catch (error) {
       console.error("Error fetching services:", error);
       setError(error.message);

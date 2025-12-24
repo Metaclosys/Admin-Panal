@@ -34,3 +34,7 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Service Assignment Rollout
+
+The internal dashboard is transitioning to per-location service assignments. Follow the [rollout checklist](docs/service-assignment-rollout.md) before enabling the `NEXT_PUBLIC_USE_SERVICE_ASSIGNMENTS` flag in any environment.

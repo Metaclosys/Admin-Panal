@@ -60,36 +60,63 @@ const formatHours = (hours) => {
 function ShopDashboard({ params }) {
   const router = useRouter();
   const { data: session, status } = useSession();
-  // `params` may be a Promise in newer Next.js versions. Resolve it safely
-  // inside an effect so we support both sync and async param shapes.
-  const [shopId, setShopId] = React.useState(null);
-
-  React.useEffect(() => {
-    let mounted = true;
-    ;(async () => {
-      try {
-        const resolved = await params;
-        if (!mounted) return;
-        if (resolved && resolved.id) {
-          setShopId(decodeURIComponent(resolved.id));
-        }
-      } catch (err) {
-        // If params is not awaitable this will not throw; log any unexpected errors
-        console.error('Failed to resolve route params:', err);
-      }
-    })();
-
-    return () => {
-      mounted = false;
-    };
-  }, [params]);
+  const [shopId, setShopId] = useState(null);
 
   const [shop, setShop] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  useEffect(() => {
+    let active = true;
+
+    const resolveParams = async () => {
+      try {
+        const resolved = await params;
+        if (!active) {
+          return;
+        }
+
+        const rawId = resolved?.id ?? null;
+        const decoded =
+          typeof rawId === "string" ? decodeURIComponent(rawId) : rawId;
+        const normalized =
+          typeof decoded === "string" ? decoded.trim() : decoded;
+
+        const isInvalid =
+          normalized === null ||
+          normalized === undefined ||
+          normalized === "" ||
+          normalized === "null" ||
+          normalized === "undefined";
+
+        if (isInvalid) {
+          setShopId(null);
+          setShop(null);
+          setLoading(false);
+          setError("Shop ID is missing. Please select a location again.");
+          return;
+        }
+
+        setShopId(normalized);
+      } catch (err) {
+        console.error("Failed to resolve route params", err);
+        if (active) {
+          setShopId(null);
+        }
+      }
+    };
+
+    resolveParams();
+
+    return () => {
+      active = false;
+    };
+  }, [params]);
+
   const loadShopData = useCallback(async () => {
-    if (!shopId || !session?.accessToken) return;
+    if (!shopId || !session?.accessToken) {
+      return;
+    }
 
     try {
       setLoading(true);

@@ -28,6 +28,70 @@ const DAYS_OF_WEEK = [
   "sunday",
 ];
 
+const DAY_LABELS = {
+  monday: "Monday",
+  tuesday: "Tuesday",
+  wednesday: "Wednesday",
+  thursday: "Thursday",
+  friday: "Friday",
+  saturday: "Saturday",
+  sunday: "Sunday",
+};
+
+const US_STATES = [
+  { value: "AL", label: "Alabama" },
+  { value: "AK", label: "Alaska" },
+  { value: "AZ", label: "Arizona" },
+  { value: "AR", label: "Arkansas" },
+  { value: "CA", label: "California" },
+  { value: "CO", label: "Colorado" },
+  { value: "CT", label: "Connecticut" },
+  { value: "DE", label: "Delaware" },
+  { value: "DC", label: "District of Columbia" },
+  { value: "FL", label: "Florida" },
+  { value: "GA", label: "Georgia" },
+  { value: "HI", label: "Hawaii" },
+  { value: "ID", label: "Idaho" },
+  { value: "IL", label: "Illinois" },
+  { value: "IN", label: "Indiana" },
+  { value: "IA", label: "Iowa" },
+  { value: "KS", label: "Kansas" },
+  { value: "KY", label: "Kentucky" },
+  { value: "LA", label: "Louisiana" },
+  { value: "ME", label: "Maine" },
+  { value: "MD", label: "Maryland" },
+  { value: "MA", label: "Massachusetts" },
+  { value: "MI", label: "Michigan" },
+  { value: "MN", label: "Minnesota" },
+  { value: "MS", label: "Mississippi" },
+  { value: "MO", label: "Missouri" },
+  { value: "MT", label: "Montana" },
+  { value: "NE", label: "Nebraska" },
+  { value: "NV", label: "Nevada" },
+  { value: "NH", label: "New Hampshire" },
+  { value: "NJ", label: "New Jersey" },
+  { value: "NM", label: "New Mexico" },
+  { value: "NY", label: "New York" },
+  { value: "NC", label: "North Carolina" },
+  { value: "ND", label: "North Dakota" },
+  { value: "OH", label: "Ohio" },
+  { value: "OK", label: "Oklahoma" },
+  { value: "OR", label: "Oregon" },
+  { value: "PA", label: "Pennsylvania" },
+  { value: "RI", label: "Rhode Island" },
+  { value: "SC", label: "South Carolina" },
+  { value: "SD", label: "South Dakota" },
+  { value: "TN", label: "Tennessee" },
+  { value: "TX", label: "Texas" },
+  { value: "UT", label: "Utah" },
+  { value: "VT", label: "Vermont" },
+  { value: "VA", label: "Virginia" },
+  { value: "WA", label: "Washington" },
+  { value: "WV", label: "West Virginia" },
+  { value: "WI", label: "Wisconsin" },
+  { value: "WY", label: "Wyoming" },
+];
+
 const defaultFormValues = DAYS_OF_WEEK.reduce(
   (acc, day) => ({
     ...acc,
@@ -150,6 +214,7 @@ function AddShop({
   const [newClosedDate, setNewClosedDate] = useState("");
   const [newClosedDescription, setNewClosedDescription] = useState("");
   const [accessToken, setAccessToken] = useState(null);
+  const [sameAsPrevious, setSameAsPrevious] = useState({});
 
   const isEditMode = mode === "edit";
   const modalTitle = isEditMode ? "Edit Shop" : "Add New Shop";
@@ -176,6 +241,7 @@ function AddShop({
 
       setNewClosedDate("");
       setNewClosedDescription("");
+      setSameAsPrevious({});
     }
   }, [open, form, isEditMode, shopData]);
 
@@ -213,6 +279,52 @@ function AddShop({
   const formatTimeValue = (timeValue) => {
     if (!timeValue) return null;
     return dayjs(timeValue).format("HH:mm");
+  };
+
+  const getPreviousDay = (day) => {
+    const index = DAYS_OF_WEEK.indexOf(day);
+    return index > 0 ? DAYS_OF_WEEK[index - 1] : null;
+  };
+
+  const copyDayFromPrevious = (day) => {
+    const prevDay = getPreviousDay(day);
+    if (!prevDay) {
+      return;
+    }
+    const values = form.getFieldsValue([
+      `${prevDay}Closed`,
+      `${prevDay}Open`,
+      `${prevDay}Close`,
+    ]);
+    form.setFieldsValue({
+      [`${day}Closed`]: values[`${prevDay}Closed`],
+      [`${day}Open`]: values[`${prevDay}Open`],
+      [`${day}Close`]: values[`${prevDay}Close`],
+    });
+  };
+
+  const handleSameAsPreviousToggle = (day, checked) => {
+    setSameAsPrevious((prev) => ({ ...prev, [day]: checked }));
+    if (checked) {
+      copyDayFromPrevious(day);
+    }
+  };
+
+  const handleHoursValuesChange = (_, allValues) => {
+    Object.entries(sameAsPrevious).forEach(([day, enabled]) => {
+      if (!enabled) {
+        return;
+      }
+      const prevDay = getPreviousDay(day);
+      if (!prevDay) {
+        return;
+      }
+      form.setFieldsValue({
+        [`${day}Closed`]: allValues[`${prevDay}Closed`],
+        [`${day}Open`]: allValues[`${prevDay}Open`] || null,
+        [`${day}Close`]: allValues[`${prevDay}Close`] || null,
+      });
+    });
   };
 
   const handleSubmit = async (values) => {
@@ -342,6 +454,7 @@ function AddShop({
         form={form}
         layout="vertical"
         onFinish={handleSubmit}
+        onValuesChange={handleHoursValuesChange}
         initialValues={{ ...defaultFormValues }}
       >
         {/* Shop Details Section */}
@@ -439,7 +552,18 @@ function AddShop({
               name="state"
               rules={[{ required: true, message: "State is required" }]}
             >
-              <Input placeholder="Enter State/Province" className="p-2" />
+              <Select
+                showSearch
+                optionFilterProp="label"
+                placeholder="Select State/Province"
+                className="w-full"
+              >
+                {US_STATES.map((state) => (
+                  <Option key={state.value} value={state.value} label={state.label}>
+                    {state.label}
+                  </Option>
+                ))}
+              </Select>
             </Form.Item>
 
             <Form.Item
@@ -549,201 +673,77 @@ function AddShop({
             Hours of Operation
           </h2>
 
-          {/* Monday */}
-          <div className="mb-4">
-            <div className="flex items-center mb-2">
-              <h3 className="text-md font-medium mr-2">Monday</h3>
-              <Form.Item name="mondayClosed" valuePropName="checked" noStyle>
-                <Switch
-                  checkedChildren="Closed"
-                  unCheckedChildren="Open"
-                  className="ml-2"
-                />
-              </Form.Item>
-            </div>
-            <Form.Item noStyle shouldUpdate>
-              {({ getFieldValue }) =>
-                getFieldValue("mondayClosed") ? null : (
-                  <div className="grid grid-cols-2 gap-4">
-                    <Form.Item label="Open" name="mondayOpen">
-                      <TimePicker format="HH:mm" className="w-full" />
-                    </Form.Item>
-                    <Form.Item label="Close" name="mondayClose">
-                      <TimePicker format="HH:mm" className="w-full" />
-                    </Form.Item>
-                  </div>
-                )
-              }
-            </Form.Item>
-          </div>
+          {DAYS_OF_WEEK.map((day, index) => (
+            <div key={day} className="mb-4">
+              <Form.Item noStyle shouldUpdate>
+                {({ getFieldValue }) => {
+                  const isClosed = Boolean(getFieldValue(`${day}Closed`));
+                  const prevDay = index > 0 ? DAYS_OF_WEEK[index - 1] : null;
+                  const hasPrevHours =
+                    prevDay &&
+                    (Boolean(getFieldValue(`${prevDay}Closed`)) ||
+                      (getFieldValue(`${prevDay}Open`) &&
+                        getFieldValue(`${prevDay}Close`)));
 
-          {/* Tuesday */}
-          <div className="mb-4">
-            <div className="flex items-center mb-2">
-              <h3 className="text-md font-medium mr-2">Tuesday</h3>
-              <Form.Item name="tuesdayClosed" valuePropName="checked" noStyle>
-                <Switch
-                  checkedChildren="Closed"
-                  unCheckedChildren="Open"
-                  className="ml-2"
-                />
-              </Form.Item>
-            </div>
-            <Form.Item noStyle shouldUpdate>
-              {({ getFieldValue }) =>
-                getFieldValue("tuesdayClosed") ? null : (
-                  <div className="grid grid-cols-2 gap-4">
-                    <Form.Item label="Open" name="tuesdayOpen">
-                      <TimePicker format="HH:mm" className="w-full" />
-                    </Form.Item>
-                    <Form.Item label="Close" name="tuesdayClose">
-                      <TimePicker format="HH:mm" className="w-full" />
-                    </Form.Item>
-                  </div>
-                )
-              }
-            </Form.Item>
-          </div>
+                  return (
+                    <>
+                      <div className="flex flex-wrap items-center gap-3 mb-2">
+                        <h3 className="text-md font-medium">{DAY_LABELS[day]}</h3>
+                        <Form.Item
+                          name={`${day}Closed`}
+                          valuePropName="checked"
+                          noStyle
+                        >
+                          <Switch
+                            checkedChildren="Closed"
+                            unCheckedChildren="Open"
+                            className="ml-2"
+                            disabled={sameAsPrevious[day]}
+                          />
+                        </Form.Item>
+                        {prevDay && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <Switch
+                              size="small"
+                              checked={Boolean(sameAsPrevious[day])}
+                              disabled={!hasPrevHours}
+                              onChange={(checked) =>
+                                handleSameAsPreviousToggle(day, checked)
+                              }
+                            />
+                            <span className="text-xs text-gray-600">
+                              Same as previous
+                            </span>
+                          </div>
+                        )}
+                      </div>
 
-          {/* Wednesday */}
-          <div className="mb-4">
-            <div className="flex items-center mb-2">
-              <h3 className="text-md font-medium mr-2">Wednesday</h3>
-              <Form.Item name="wednesdayClosed" valuePropName="checked" noStyle>
-                <Switch
-                  checkedChildren="Closed"
-                  unCheckedChildren="Open"
-                  className="ml-2"
-                />
+                      {!isClosed && (
+                        <div className="grid grid-cols-2 gap-4">
+                          <Form.Item label="Open" name={`${day}Open`}>
+                            <TimePicker
+                              format="h:mm A"
+                              use12Hours
+                              className="w-full"
+                              disabled={sameAsPrevious[day]}
+                            />
+                          </Form.Item>
+                          <Form.Item label="Close" name={`${day}Close`}>
+                            <TimePicker
+                              format="h:mm A"
+                              use12Hours
+                              className="w-full"
+                              disabled={sameAsPrevious[day]}
+                            />
+                          </Form.Item>
+                        </div>
+                      )}
+                    </>
+                  );
+                }}
               </Form.Item>
             </div>
-            <Form.Item noStyle shouldUpdate>
-              {({ getFieldValue }) =>
-                getFieldValue("wednesdayClosed") ? null : (
-                  <div className="grid grid-cols-2 gap-4">
-                    <Form.Item label="Open" name="wednesdayOpen">
-                      <TimePicker format="HH:mm" className="w-full" />
-                    </Form.Item>
-                    <Form.Item label="Close" name="wednesdayClose">
-                      <TimePicker format="HH:mm" className="w-full" />
-                    </Form.Item>
-                  </div>
-                )
-              }
-            </Form.Item>
-          </div>
-
-          {/* Thursday */}
-          <div className="mb-4">
-            <div className="flex items-center mb-2">
-              <h3 className="text-md font-medium mr-2">Thursday</h3>
-              <Form.Item name="thursdayClosed" valuePropName="checked" noStyle>
-                <Switch
-                  checkedChildren="Closed"
-                  unCheckedChildren="Open"
-                  className="ml-2"
-                />
-              </Form.Item>
-            </div>
-            <Form.Item noStyle shouldUpdate>
-              {({ getFieldValue }) =>
-                getFieldValue("thursdayClosed") ? null : (
-                  <div className="grid grid-cols-2 gap-4">
-                    <Form.Item label="Open" name="thursdayOpen">
-                      <TimePicker format="HH:mm" className="w-full" />
-                    </Form.Item>
-                    <Form.Item label="Close" name="thursdayClose">
-                      <TimePicker format="HH:mm" className="w-full" />
-                    </Form.Item>
-                  </div>
-                )
-              }
-            </Form.Item>
-          </div>
-
-          {/* Friday */}
-          <div className="mb-4">
-            <div className="flex items-center mb-2">
-              <h3 className="text-md font-medium mr-2">Friday</h3>
-              <Form.Item name="fridayClosed" valuePropName="checked" noStyle>
-                <Switch
-                  checkedChildren="Closed"
-                  unCheckedChildren="Open"
-                  className="ml-2"
-                />
-              </Form.Item>
-            </div>
-            <Form.Item noStyle shouldUpdate>
-              {({ getFieldValue }) =>
-                getFieldValue("fridayClosed") ? null : (
-                  <div className="grid grid-cols-2 gap-4">
-                    <Form.Item label="Open" name="fridayOpen">
-                      <TimePicker format="HH:mm" className="w-full" />
-                    </Form.Item>
-                    <Form.Item label="Close" name="fridayClose">
-                      <TimePicker format="HH:mm" className="w-full" />
-                    </Form.Item>
-                  </div>
-                )
-              }
-            </Form.Item>
-          </div>
-
-          {/* Saturday */}
-          <div className="mb-4">
-            <div className="flex items-center mb-2">
-              <h3 className="text-md font-medium mr-2">Saturday</h3>
-              <Form.Item name="saturdayClosed" valuePropName="checked" noStyle>
-                <Switch
-                  checkedChildren="Closed"
-                  unCheckedChildren="Open"
-                  className="ml-2"
-                />
-              </Form.Item>
-            </div>
-            <Form.Item noStyle shouldUpdate>
-              {({ getFieldValue }) =>
-                getFieldValue("saturdayClosed") ? null : (
-                  <div className="grid grid-cols-2 gap-4">
-                    <Form.Item label="Open" name="saturdayOpen">
-                      <TimePicker format="HH:mm" className="w-full" />
-                    </Form.Item>
-                    <Form.Item label="Close" name="saturdayClose">
-                      <TimePicker format="HH:mm" className="w-full" />
-                    </Form.Item>
-                  </div>
-                )
-              }
-            </Form.Item>
-          </div>
-
-          {/* Sunday */}
-          <div className="mb-4">
-            <div className="flex items-center mb-2">
-              <h3 className="text-md font-medium mr-2">Sunday</h3>
-              <Form.Item name="sundayClosed" valuePropName="checked" noStyle>
-                <Switch
-                  checkedChildren="Closed"
-                  unCheckedChildren="Open"
-                  className="ml-2"
-                />
-              </Form.Item>
-            </div>
-            <Form.Item noStyle shouldUpdate>
-              {({ getFieldValue }) =>
-                getFieldValue("sundayClosed") ? null : (
-                  <div className="grid grid-cols-2 gap-4">
-                    <Form.Item label="Open" name="sundayOpen">
-                      <TimePicker format="HH:mm" className="w-full" />
-                    </Form.Item>
-                    <Form.Item label="Close" name="sundayClose">
-                      <TimePicker format="HH:mm" className="w-full" />
-                    </Form.Item>
-                  </div>
-                )
-              }
-            </Form.Item>
-          </div>
+          ))}
         </div>
 
         {/* Closed Dates Section */}

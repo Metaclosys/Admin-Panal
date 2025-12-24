@@ -1,3 +1,4 @@
+import "./lib/antdCompatibility";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./component/globals.css";
 import SessionProviderWrapper from "./SessionProviderWrapper";
@@ -21,7 +22,7 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body 
+      <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         suppressHydrationWarning={true}
       >

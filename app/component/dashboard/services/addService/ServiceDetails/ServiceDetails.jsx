@@ -102,6 +102,19 @@ export const normalizeServiceFormValues = (service = {}) => {
   };
 };
 
+const normalizeUploadEvent = (event) => {
+  if (Array.isArray(event)) {
+    return event;
+  }
+  if (!event) {
+    return [];
+  }
+  if (Array.isArray(event.fileList)) {
+    return event.fileList;
+  }
+  return [];
+};
+
 const ServiceDetails = ({ form, mode = "create", initialValues = null }) => {
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -625,6 +638,8 @@ const ServiceDetails = ({ form, mode = "create", initialValues = null }) => {
         <Form.Item
           label="Service Images"
           name="imageUrl"
+          valuePropName="fileList"
+          getValueFromEvent={normalizeUploadEvent}
           className="col-span-1 md:col-span-2"
         >
           <Upload {...props} listType="picture" multiple={false}>
@@ -635,6 +650,8 @@ const ServiceDetails = ({ form, mode = "create", initialValues = null }) => {
         <Form.Item
           label="Thumbnail"
           name="thumbnailUrl"
+          valuePropName="fileList"
+          getValueFromEvent={normalizeUploadEvent}
           className="col-span-1 md:col-span-2"
         >
           <Upload {...props} listType="picture" multiple={false}>

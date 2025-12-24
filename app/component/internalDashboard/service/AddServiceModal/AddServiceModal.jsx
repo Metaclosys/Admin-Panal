@@ -156,6 +156,35 @@ const buildServicePayload = (baseService, overrides, shopId) => {
     discount: formatNumber(overrides.discount, formatNumber(baseService.discount, 0)),
   };
 };
+const buildAssignmentPayload = (baseService, overrides, shopId) => {
+  if (!baseService) {
+    throw new Error("Base service is required");
+  }
+
+  const normalizedServiceId =
+    baseService._id ||
+    baseService.id ||
+    baseService.serviceId ||
+    (baseService.service?._id || baseService.service?.id);
+
+  if (!normalizedServiceId) {
+    throw new Error("Unable to determine base service identifier");
+  }
+
+  return {
+    serviceId: String(normalizedServiceId),
+    locationId: String(shopId),
+    price: formatNumber(overrides.price, baseService.price ?? 0),
+    duration: String(normalizeDuration(overrides.duration ?? baseService.duration, 30)),
+    discount: formatNumber(overrides.discount, baseService.discount ?? 0),
+    isActive:
+      overrides.isActive !== undefined
+        ? Boolean(overrides.isActive)
+        : baseService.isActive ?? true,
+    employees: overrides.employees ?? extractIds(baseService.assignedEmployees),
+    products: overrides.products ?? extractIds(baseService.productsUsed || baseService.products || []),
+  };
+};
 
 const getEntityId = (entity) => {
   if (!entity) {
@@ -260,6 +289,9 @@ const getProductLabel = (product) => {
   return getEntityId(product) || "Unknown";
 };
 
+const USE_ASSIGNMENTS =
+  process.env.NEXT_PUBLIC_USE_SERVICE_ASSIGNMENTS === "true";
+
 function AddServiceModal({ open, onClose, onSuccess, shopId }) {
   const [form] = Form.useForm();
   const { data: session } = useSession();
@@ -308,15 +340,41 @@ function AddServiceModal({ open, onClose, onSuccess, shopId }) {
           ? `${API_ENDPOINTS.EMPLOYEES.BASE}?locationId=${encodeURIComponent(shopId)}`
           : API_ENDPOINTS.EMPLOYEES.BASE;
 
-        const [servicesData, employeesData, productsData] = await Promise.all([
-          apiCall(API_ENDPOINTS.SERVICES.BASE, { headers }),
-          apiCall(employeeEndpoint, { headers }),
-          apiCall(API_ENDPOINTS.PRODUCTS.BASE, { headers }),
+        const [servicesResult, employeesResult, productsResult] = await Promise.allSettled([
+          apiCall(API_ENDPOINTS.SERVICES.BASE, { headers, suppressErrorLog: true }),
+          apiCall(employeeEndpoint, { headers, suppressErrorLog: true }),
+          apiCall(API_ENDPOINTS.PRODUCTS.BASE, { headers, suppressErrorLog: true }),
         ]);
 
-        setAvailableServices(Array.isArray(servicesData) ? servicesData : []);
-        setEmployees(Array.isArray(employeesData) ? employeesData : []);
-        setProducts(Array.isArray(productsData) ? productsData : []);
+        const servicesData =
+          servicesResult.status === "fulfilled" && Array.isArray(servicesResult.value)
+            ? servicesResult.value
+            : [];
+        const employeesData =
+          employeesResult.status === "fulfilled" && Array.isArray(employeesResult.value)
+            ? employeesResult.value
+            : [];
+        const productsData =
+          productsResult.status === "fulfilled" && Array.isArray(productsResult.value)
+            ? productsResult.value
+            : [];
+
+        if (servicesResult.status === "rejected") {
+          console.warn("Failed to load services list", servicesResult.reason);
+          message.warning("Some services could not be loaded.");
+        }
+        if (employeesResult.status === "rejected") {
+          console.warn("Failed to load employees list", employeesResult.reason);
+          message.warning("Employees could not be loaded.");
+        }
+        if (productsResult.status === "rejected") {
+          console.warn("Failed to load products list", productsResult.reason);
+          message.warning("Products could not be loaded. You can continue without them.");
+        }
+
+        setAvailableServices(servicesData);
+        setEmployees(employeesData);
+        setProducts(productsData);
       } catch (error) {
         console.error("Failed to load supporting data", error);
         message.error(error.message || "Failed to load services, employees, or products");
@@ -390,18 +448,30 @@ function AddServiceModal({ open, onClose, onSuccess, shopId }) {
         return;
       }
 
-      const payload = buildServicePayload(selectedService, values, shopId);
+      const payload = USE_ASSIGNMENTS
+        ? buildAssignmentPayload(selectedService, values, shopId)
+        : buildServicePayload(selectedService, values, shopId);
 
       setSubmitting(true);
-      await apiCall(API_ENDPOINTS.SERVICES.BASE, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${session.accessToken}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      message.success("Service added to shop successfully");
+      if (USE_ASSIGNMENTS) {
+        await apiCall(API_ENDPOINTS.SERVICE_ASSIGNMENTS.BASE, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${session.accessToken}`,
+          },
+          body: JSON.stringify(payload),
+        });
+        message.success("Service assignment created successfully");
+      } else {
+        await apiCall(API_ENDPOINTS.SERVICES.BASE, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${session.accessToken}`,
+          },
+          body: JSON.stringify(payload),
+        });
+        message.success("Service added to shop successfully");
+      }
       form.resetFields();
       setSelectedServiceId(null);
       onSuccess?.();

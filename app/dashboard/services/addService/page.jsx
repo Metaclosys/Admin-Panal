@@ -16,19 +16,50 @@ const normalizeServiceId = (value) => {
   return decoded;
 };
 
-export default async function AddServicePage({ searchParams }) {
+const extractServiceId = (params) => {
+  if (!params) {
+    return null;
+  }
+
+  if (typeof URLSearchParams !== "undefined" && params instanceof URLSearchParams) {
+    const value = params.get("serviceId");
+    return typeof value === "string" && value ? value : null;
+  }
+
+  if (typeof params === "object") {
+    try {
+      if (Object.prototype.hasOwnProperty.call(params, "serviceId")) {
+        const candidate = params.serviceId;
+        if (typeof candidate === "string") {
+          return candidate;
+        }
+        if (Array.isArray(candidate) && candidate.length > 0) {
+          return candidate[0];
+        }
+      }
+      if (typeof candidate === "string") {
+        return candidate;
+      }
+      if (Array.isArray(candidate) && candidate.length > 0) {
+        return candidate[0];
+      }
+    } catch {
+      // ignore getter errors
+    }
+  }
+
+  return null;
+};
+
+export default async function AddServicePage(props = {}) {
+  const searchParams = props?.searchParams;
   const session = await getServerSession(authOptions);
 
   if (!session?.accessToken) {
     redirect("/");
   }
 
-  const rawServiceId =
-    typeof searchParams?.serviceId === "string"
-      ? searchParams.serviceId
-      : Array.isArray(searchParams?.serviceId)
-      ? searchParams.serviceId[0]
-      : null;
+  const rawServiceId = extractServiceId(searchParams);
 
   const serviceId = normalizeServiceId(rawServiceId);
   const hasInvalidServiceParam = Boolean(rawServiceId && !serviceId);

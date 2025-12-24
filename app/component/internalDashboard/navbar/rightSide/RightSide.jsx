@@ -2,19 +2,21 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { MdOutlineTranslate } from "react-icons/md";
 import { Select } from "antd";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { API_ENDPOINTS, apiCall } from "../../../../api/apiContent/apiContent";
 import { useShop } from "../../../../context/ShopContext";
 
 function RightSide() {
   const router = useRouter();
+  const pathname = usePathname();
   const [currentTime, setCurrentTime] = useState("");
   const [greeting, setGreeting] = useState("");
   const { currentShopId, updateShopId } = useShop();
   const { data: session } = useSession();
   const [shops, setShops] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedDashboard, setSelectedDashboard] = useState("dashboard");
 
   const roles = useMemo(() => {
     if (Array.isArray(session?.user?.roles)) {
@@ -94,10 +96,13 @@ function RightSide() {
 
   const handleDashboardChange = (value) => {
     if (value === "dashboard") {
+      setSelectedDashboard("dashboard");
+      updateShopId(null);
       router.push("/dashboard");
     } else {
       const shopId = value.split("/").pop();
       updateShopId(shopId);
+      setSelectedDashboard(`internalDashboard/shops/${shopId}`);
       router.push(`/internalDashboard/shops/${shopId}`);
     }
   };
@@ -143,6 +148,29 @@ function RightSide() {
     ];
   }, [isReservationist, shops]);
 
+  useEffect(() => {
+    if (pathname === "/dashboard") {
+      setSelectedDashboard("dashboard");
+      if (currentShopId) {
+        updateShopId(null);
+      }
+      return;
+    }
+
+    if (pathname?.startsWith("/internalDashboard/shops/")) {
+      const shopId = pathname.split("/").pop();
+      if (shopId) {
+        const value = `internalDashboard/shops/${shopId}`;
+        if (selectedDashboard !== value) {
+          setSelectedDashboard(value);
+        }
+        if (currentShopId !== shopId) {
+          updateShopId(shopId);
+        }
+      }
+    }
+  }, [pathname, currentShopId, updateShopId, selectedDashboard]);
+
   return (
     <div className="flex items-center gap-8 ml-auto">
       {!isReservationist && (
@@ -152,7 +180,10 @@ function RightSide() {
           onChange={handleDashboardChange}
           className="border-none bg-transparent text-sm min-w-[200px]"
           options={dashboardOptions}
-          value={currentShopId ? `internalDashboard/shops/${currentShopId}` : undefined}
+          value={
+            selectedDashboard ||
+            (currentShopId ? `internalDashboard/shops/${currentShopId}` : "dashboard")
+          }
           loading={loading}
         />
       )}
