@@ -68,6 +68,14 @@ export const API_ENDPOINTS = {
     BY_SHOP: (shopId, active = true) =>
       `/services?shopId=${shopId}${active ? "" : "&active=false"}`,
   },
+  SERVICE_ASSIGNMENTS: {
+    BASE: "/service-assignments",
+    BY_ID: (id) => `/service-assignments/${id}`,
+    BY_LOCATION: (locationId, includeInactive = false) =>
+      `/service-assignments/location/${locationId}${
+        includeInactive ? "?includeInactive=true" : ""
+      }`,
+  },
   SERVICE_CATEGORIES: {
     BASE: "/service-categories",
     BY_ID: (id) => `/service-categories/${id}`,

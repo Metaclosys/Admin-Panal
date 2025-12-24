@@ -1,28 +1,35 @@
 "use client";
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 
 const ShopContext = createContext();
 
 export function ShopProvider({ children }) {
   const [currentShopId, setCurrentShopId] = useState(null);
   const [isClient, setIsClient] = useState(false);
-  const router = useRouter();
 
   useEffect(() => {
     setIsClient(true);
     const savedShopId = localStorage.getItem("currentShopId");
-    if (savedShopId) {
+    if (savedShopId && savedShopId !== "null") {
       setCurrentShopId(savedShopId);
+    } else if (savedShopId === "null") {
+      localStorage.removeItem("currentShopId");
     }
   }, []);
 
   const updateShopId = (shopId) => {
-    if (isClient) {
-      setCurrentShopId(shopId);
-      localStorage.setItem("currentShopId", shopId);
-      router.push(`/internalDashboard/shops/${shopId}`);
+    if (!isClient) {
+      return;
     }
+
+    setCurrentShopId(shopId ?? null);
+
+    if (shopId) {
+      localStorage.setItem("currentShopId", shopId);
+      return;
+    }
+
+    localStorage.removeItem("currentShopId");
   };
 
   if (!isClient) {

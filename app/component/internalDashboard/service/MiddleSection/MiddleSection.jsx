@@ -6,6 +6,9 @@ import DeletePop from "../../../dashboard/deletePop/deletePop";
 import UniversalTable from "../../../dashboard/table/universalTable";
 import { API_ENDPOINTS, apiCall } from "../../../../api/apiContent/apiContent";
 
+const USE_ASSIGNMENTS =
+  process.env.NEXT_PUBLIC_USE_SERVICE_ASSIGNMENTS === "true";
+
 const humanizeEntityName = (entity) => {
   if (!entity) {
     return "";
@@ -92,16 +95,23 @@ function MiddleSection({
   const [showDeletePop, setShowDeletePop] = useState(false);
   const [selectedService, setSelectedService] = useState(null);
 
-  const handleDeleteService = async (serviceId) => {
+  const handleDeleteService = async (serviceId, assignmentId) => {
     try {
-      await apiCall(API_ENDPOINTS.SERVICES.BY_ID(serviceId), {
+      const endpoint = USE_ASSIGNMENTS && assignmentId
+        ? API_ENDPOINTS.SERVICE_ASSIGNMENTS.BY_ID(assignmentId)
+        : API_ENDPOINTS.SERVICES.BY_ID(serviceId);
+
+      await apiCall(endpoint, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session?.accessToken}`,
         },
       });
-      message.success("Service deleted successfully");
+
+      message.success(
+        USE_ASSIGNMENTS ? "Service assignment removed" : "Service deleted successfully"
+      );
       onServiceDeleted();
     } catch (error) {
       console.error("Delete error:", error);
@@ -213,7 +223,12 @@ function MiddleSection({
             setShowDeletePop(false);
             setSelectedService(null);
           }}
-          onDelete={() => handleDeleteService(selectedService._id || selectedService.id)}
+          onDelete={() =>
+            handleDeleteService(
+              selectedService._id || selectedService.id,
+              selectedService.assignmentId
+            )
+          }
           onClose={() => setShowDeletePop(false)}
         />
       )}
@@ -222,6 +237,5 @@ function MiddleSection({
 }
 
 export default MiddleSection;
-
 
 
